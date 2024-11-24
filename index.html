@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Text to Speech Tool - Multi Language</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            resize: vertical;
+            font-family: 'Arial', 'Iskoola Pota', sans-serif;
+        }
+
+        .voice-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        select, button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            min-width: 120px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .rate-pitch-controls {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+        }
+
+        input[type="range"] {
+            width: 100%;
+        }
+
+        .value-display {
+            text-align: center;
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        .language-select {
+            margin-bottom: 1rem;
+            width: 100%;
+        }
+
+        .example-texts {
+            margin-top: 1rem;
+            padding: 1rem;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .example-texts h3 {
+            margin-top: 0;
+            color: #555;
+        }
+
+        .example-button {
+            background-color: #6c757d;
+            margin: 0.25rem;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Text to Speech Tool</h1>
+        <div class="controls">
+            <div class="language-select">
+                <label for="language-select">Select Language:</label>
+                <select id="language-select">
+                    <option value="en">English</option>
+                    <option value="si">සිංහල (Sinhala)</option>
+                </select>
+            </div>
+
+            <textarea id="text-input" placeholder="Enter text to convert to speech..."></textarea>
+            
+            <div class="example-texts">
+                <h3>Example Texts</h3>
+                <button class="example-button" data-lang="si" data-text="ආයුබෝවන්! ඔබට සුභ දවසක් වේවා.">
+                    Sinhala Greeting
+                </button>
+                <button class="example-button" data-lang="si" data-text="මම සිංහල භාෂාවෙන් කථා කරමි.">
+                    Simple Sinhala Phrase
+                </button>
+                <button class="example-button" data-lang="si" data-text="සිංහල භාෂාව ශ්‍රී ලංකාවේ ප්‍රධාන භාෂාවයි.">
+                    About Sinhala
+                </button>
+            </div>
+
+            <div class="voice-controls">
+                <select id="voice-select">
+                    <option value="">Select a voice</option>
+                </select>
+                <button id="play-button">Speak</button>
+                <button id="pause-button">Pause</button>
+                <button id="stop-button">Stop</button>
+            </div>
+
+            <div class="rate-pitch-controls">
+                <div class="control-group">
+                    <label for="rate">Rate:</label>
+                    <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
+                    <div id="rate-value" class="value-display">1</div>
+                </div>
+
+                <div class="control-group">
+                    <label for="pitch">Pitch:</label>
+                    <input type="range" id="pitch" min="0.5" max="2" value="1" step="0.1">
+                    <div id="pitch-value" class="value-display">1</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const textInput = document.getElementById('text-input');
+        const voiceSelect = document.getElementById('voice-select');
+        const languageSelect = document.getElementById('language-select');
+        const playButton = document.getElementById('play-button');
+        const pauseButton = document.getElementById('pause-button');
+        const stopButton = document.getElementById('stop-button');
+        const rateInput = document.getElementById('rate');
+        const pitchInput = document.getElementById('pitch');
+        const rateValue = document.getElementById('rate-value');
+        const pitchValue = document.getElementById('pitch-value');
+
+        let speechSynthesis = window.speechSynthesis;
+        let utterance = null;
+
+        // Load available voices and filter by selected language
+        function loadVoices() {
+            const voices = speechSynthesis.getVoices();
+            const selectedLanguage = languageSelect.value;
+            
+            // Filter voices based on language
+            const filteredVoices = voices.filter(voice => 
+                voice.lang.startsWith(selectedLanguage) || 
+                (selectedLanguage === 'si' && voice.lang.startsWith('en')) // Fallback to English for Sinhala
+            );
+
+            voiceSelect.innerHTML = filteredVoices.map(voice => 
+                `<option value="${voice.name}">${voice.name} (${voice.lang})</option>`
+            ).join('');
+
+            // Set placeholder text based on language
+            if (selectedLanguage === 'si') {
+                textInput.placeholder = 'කථාවට පරිවර්තනය කිරීමට පෙළ ඇතුළත් කරන්න...';
+            } else {
+                textInput.placeholder = 'Enter text to convert to speech...';
+            }
+        }
+
+        // Handle language change
+        languageSelect.addEventListener('change', loadVoices);
+
+        // Chrome loads voices asynchronously
+        speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices(); // For other browsers
+
+        // Example text buttons
+        document.querySelectorAll('.example-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const lang = button.dataset.lang;
+                const text = button.dataset.text;
+                languageSelect.value = lang;
+                loadVoices();
+                textInput.value = text;
+            });
+        });
+
+        // Update rate and pitch displays
+        rateInput.addEventListener('input', (e) => {
+            rateValue.textContent = e.target.value;
+        });
+
+        pitchInput.addEventListener('input', (e) => {
+            pitchValue.textContent = e.target.value;
+        });
+
+        // Play button handler
+        playButton.addEventListener('click', () => {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.resume();
+                return;
+            }
+
+            const text = textInput.value;
+            if (!text) return;
+
+            utterance = new SpeechSynthesisUtterance(text);
+            
+            // Set selected voice
+            const voices = speechSynthesis.getVoices();
+            const selectedVoice = voices.find(voice => voice.name === voiceSelect.value);
+            if (selectedVoice) utterance.voice = selectedVoice;
+
+            // Set language
+            utterance.lang = languageSelect.value;
+
+            // Set rate and pitch
+            utterance.rate = parseFloat(rateInput.value);
+            utterance.pitch = parseFloat(pitchInput.value);
+
+            // Handle end of speech
+            utterance.onend = () => {
+                playButton.disabled = false;
+            };
+
+            speechSynthesis.speak(utterance);
+            playButton.disabled = true;
+        });
+
+        // Pause button handler
+        pauseButton.addEventListener('click', () => {
+            if (speechSynthesis.speaking) {
+                speechSynthesis.pause();
+            }
+        });
+
+        // Stop button handler
+        stopButton.addEventListener('click', () => {
+            speechSynthesis.cancel();
+            playButton.disabled = false;
+        });
+    </script>
+</body>
+</html>
